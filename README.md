@@ -2,302 +2,219 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-informational.svg)](./LICENSE)
 [![Uniswap v4](https://img.shields.io/badge/Uniswap-v4%20hook-7c8bff.svg)](https://docs.uniswap.org/contracts/v4/overview)
+[![Unichain Sepolia](https://img.shields.io/badge/Unichain-Sepolia%201301-00d395.svg)](https://sepolia.uniscan.xyz)
 
-UHI10 capstone — *Sustainable Liquidity & MEV Protection*
+**Live desk:** [uhi10-fair-path.vercel.app](https://uhi10-fair-path.vercel.app) · **Pool:** fpVOL / fpUSD · **Hook:** [`0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4`](https://sepolia.uniscan.xyz/address/0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4)
 
-> **Three corridors. One pool. Toxic flow pays. Honest flow is cheap.**
+> Three corridors. One pool. Toxic flow pays LPs. Honest flow is cheap.
 
 ---
 
 ## The idea
 
-**Fair Path is a Uniswap v4 hook that prices a swap by three facts the rest of the AMM pretends are identical:**
+Fair Path is a **Uniswap v4 hook that prices every swap by three facts AMMs usually treat as identical**: who built the block, where in the block the swap sits, and whether the searcher posted a bond.
 
-1. **Who built the block** — attested fair ordering (Flashbots Flashtestations / Unichain TEE) vs public mempool.
-2. **Where in the block it sits** — Unichain Flashblocks (~200ms slots). Slot 0 is searcher first-look. Later slots are retail.
-3. **Whether the searcher posted a bond** — priority is rented. A published sandwich / JIT rule slashes that bond into LPs.
+It is one pool with three corridors:
 
-Same pool, same liquidity, no dark pool, no FHE. Attested retail stays at a **low advertised fee**. Unattested searchers either **bond and pay a slot tax**, or they pay a **toxicity premium whose recapture is `donate`d to in-range LPs**. If they bond and then sandwich, the **bond is the insurance payout**.
+1. **Attested / TEE-sequenced** — Flashtestations or Unichain TEE builders. Retail fee **0.05%**, no recapture tax.
+2. **Unattested + bonded** — searcher rented first-look. Fee follows the **flashblock slot** (slot 0 is expensive; later slots approach retail).
+3. **Unattested + unbonded** — public toxic flow. Fee **1.00%** plus a **0.50% output skim** `donate`d to in-range LPs.
 
-This repo is the combined **1 + 2 + 5** design from the UHI10 idea board: Attested Fair Flow, Flashblocks Position Tax, and Searcher Bond Desk, as **one hook**.
+If a bonded searcher sandwiches (same-block opposite-direction swap), **20% of the bond is slashed into the same LP sink**.
+
+Same liquidity. No dark pool. No delay. The *price of now* depends on fairness, slot, and capital at risk.
+
+---
 
 ## The problem it solves
 
-Most "MEV protection" fails because it answers only one of three questions:
+Vanilla AMMs give searchers a free option on LPs. “MEV protection” usually answers only one question:
 
-- **Attestation-only** (fair vs unfair block) cannot tell a searcher in slot 0 from a retail wallet that happened to land in an unattested block.
-- **Delay / randomization** (18 prior UHI submissions) punishes everyone and still does not recapture LVR.
-- **Dynamic fees on size / volatility** cannot tell good flow from bad — a toxic searcher and an honest whale look identical.
-- **LVR auctions** (53 prior submissions) sell *first-in-block* as a global right. They do not price *this* pool's attested path, *this* flashblock slot, or *this* searcher's bond.
+| Approach | What it misses |
+|---|---|
+| Attestation-only | Cannot tell a slot-0 searcher from retail that landed in an unattested block |
+| Delay / encryption | Punishes everyone; LVR still leaks |
+| Size / vol dynamic fees | A toxic searcher and an honest whale look the same |
+| Top-of-block LVR auctions | Sell *who goes first globally*, not *this pool’s* attested path, slot, or bond |
 
-Fair Path closes the loop:
+Fair Path closes the loop: **honest attested flow is ~20× cheaper than unattested public flow**, first-look is a **priced slot**, and sandwiches are an **insurance event whose beneficiary is the LP**.
 
-- Honest attested flow is **20× cheaper** than unattested public flow.
-- First-look inside a block is a **priced slot**, not a free option.
-- Searchers who want that slot **post capital**. A sandwich is not "MEV"; it is a **slashed insurance event** whose beneficiary is the LP.
+---
 
 ## How it works
 
-The hook drives three v4 primitives — **dynamic-fee override**, **`afterSwapReturnDelta` recapture**, and **`donate`** — plus a bond ledger sitting next to the pool:
+The hook uses three v4 primitives — **dynamic-fee override**, **`afterSwapReturnDelta`**, and **`donate`** — plus a `SearcherBond` ledger next to the pool.
 
-1. **`beforeSwap`** reads three oracles / ledgers and returns an override fee.
-2. **`afterSwap`** recaptures a toxicity tax on the unattested, unbonded path and donates it to in-range LPs.
-3. **`afterSwap`** (same callback) evaluates the published sandwich / JIT rule against bonded searchers and slashes into the same donate sink.
-4. **`afterInitialize`** enforces the dynamic-fee flag so the override is always valid.
+1. **`beforeSwap`** reads `policy.isFair(block.number)`, `flashblocks.slot()`, and `bonds.bondedOf(searcher)` (searcher from 32-byte `hookData`; empty `hookData` is untagged / router).
+2. It returns an override fee with `OVERRIDE_FEE_FLAG`.
+3. **`afterSwap`** recaptures toxic tax and/or slashes a violating bond, then `take` → `donate` → `settle` so in-range LPs receive the capital.
+4. **`afterInitialize`** requires the dynamic-fee flag so the override is always legal.
+
+v4 `sender` is the **router**, not the wallet. Bonds key off `abi.encode(searcher)` in `hookData`. The hook never uses `tx.origin` or `msg.sender` as the user (`msg.sender` is PoolManager).
 
 ```mermaid
 flowchart TD
-    A[Swap hits the pool] --> B{policy.isFair<br/>block.number ?}
-    B -- "yes · attested" --> C["beforeSwap: fee = ATTESTED_FEE 0.05%"]
-    C --> D[afterSwap: no tax · no slash]
-    B -- "no · unattested" --> E{bonded searcher?}
-    E -- "yes" --> F["beforeSwap: fee = SLOT_FEE[flashblock slot]"]
-    F --> G{published sandwich / JIT rule?}
-    G -- "clean" --> H[afterSwap: slot fee only]
-    G -- "violation" --> I["slash bond → donate to in-range LPs"]
-    E -- "no" --> J["beforeSwap: fee = TOXIC_FEE 1.00%"]
-    J --> K["afterSwap: skim TOXIC_TAX of output"]
-    K --> L["poolManager.donate() → in-range LPs"]
-    D --> M[emit SwapClassified]
+    A[Swap hits Fair Path pool] --> B{policy.isFair this block?}
+    B -->|yes attested| C[Fee 0.05% ATTESTED]
+    C --> D[afterSwap: no tax]
+    B -->|no| E{bondedOf >= minBond?}
+    E -->|yes| F[Fee SLOT_FEE by flashblock slot]
+    F --> G{same-block opposite swap?}
+    G -->|clean| H[slot fee only]
+    G -->|violation| I[slash 20% of bond donate to LPs]
+    E -->|no| J[Fee 1.00% TOXIC]
+    J --> K[skim 0.50% of unspecified token]
+    K --> L[donate to in-range LPs]
+    D --> M[SwapClassified]
     H --> M
     I --> M
     L --> M
 ```
 
-## Corridor 1 — attestation (who built the block)
-
-The hook **never inspects a block**. It uses `block.number` as a lookup key and delegates fairness to an external oracle:
-
-```solidity
-// FairPathHook — corridor 1
-bool fair = policy.isFair(block.number);
-```
-
-The oracle is bound at construction as an `immutable IFairFlowPolicy policy`:
-
-```mermaid
-flowchart LR
-    A["Builder / TEE<br/>(fair ordering)"] -- "attest" --> B["IFairFlowPolicy"]
-    B -- "isFair(block.number)" --> C["FairPathHook"]
-```
-
-| | This repo | Live Unichain |
+| Corridor | Fee | Recapture |
 |---|---|---|
-| Oracle | `UnichainFairOracle` | Same contract, `FLASHBLOCK_NUMBER` + `BLOCK_BUILDER_POLICY` env |
-| How a block becomes "fair" | Owner-set TEE / builder keys call `incrementFlashblock`, or the live feed is non-zero | Unichain TEE builders increment `FlashblockNumber` |
-| Why | Permissionless `openFairWindow` is not production | Only genuine attested sequencing gets the retail lane |
+| Attested | 0.05% (`500`) | none |
+| Bonded slot 0–4 | 0.80% / 0.50% / 0.30% / 0.15% / 0.075% | slash on published sandwich rule |
+| Toxic | 1.00% (`10_000`) | `TOXIC_TAX_BIPS = 50` of output |
 
-**Honest boundary.** Pricing and recapture are the hook's job. Proving fairness is the oracle's job. A production oracle must make block *N*'s attestation readable **during** block *N* — exactly what in-block Flashtestations / builder policy provide, as opposed to an after-the-fact report.
+Published slash rule (v1, narrow on purpose): **same-block opposite-direction swap from the bonded searcher** → `SLASH_BIPS = 2000` of `bondedOf`. Unbond is delayed so the sandwich cannot exit in the same block.
 
-## Corridor 2 — flashblock slot (where in the block)
-
-Unichain Flashblocks split a block into ~200ms sub-blocks. Slot 0 is the searcher's first-look. Later slots are where retail actually lands. Fair Path **taxes the slot, not the wallet**.
-
-```solidity
-// FairPathHook — corridor 2
-uint8 slot = flashblocks.slot(); // 0 = first-look, higher = later
-uint24 fee = SLOT_FEE[slot];
-```
-
-| Slot | Who it is for | Fee (unattested + bonded) | Recapture |
-|---|---|---|---|
-| 0 | Searcher first-look | Highest slot fee | Slot premium is LP yield |
-| 1–2 | Mid-block | Mid | Same |
-| 3–4 | Late / retail-like | Lowest slot fee | Approaches attested retail |
-
-On chains without a live feed, only addresses in `builders[]` (owner-seeded from FlashtestationRegistry / TEE keys) may increment. There is no permissionless window.
-
-This is not a delay hook. Nothing waits. The swap executes now. The **price of now** depends on *when* inside the block it is.
-
-## Corridor 3 — searcher bond (who is allowed first-look)
-
-Priority is rented. A searcher calls `bond(amount)` in **fpVOL** (`SearcherBond.asset()`, also token0 of this pool). While `bondedOf(searcher) >= minBond`:
-
-- they may take the **bonded slot-fee path** instead of the toxic 1.00% path
-- they are subject to a **published, on-chain rule**
-
-**Published rule (v1, deliberately narrow — do not claim omniscience):**
-
-| Violation | Detection window | Effect |
-|---|---|---|
-| Same-block opposite-direction swap from the bonded address | This block | Slash `SLASH_BIPS` of the bond |
-
-Slashed principal is `donate`d to in-range LPs of **this** pool (fpVOL/fpUSD). Retail never bonds. Identity is passed as a searcher address in `hookData` (the v4 `sender` is the router, never the end user — see below).
-
-```solidity
-interface ISearcherBond {
-    function bond(uint256 amount) external;
-    function unbond(uint256 amount) external; // subject to unbonding delay
-    function bondedOf(address searcher) external view returns (uint256);
-}
-```
+---
 
 ## Complete user flow
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant UI as Console
-    participant Router as v4 Router
+    actor Trader
+    actor Searcher
+    participant Desk as Fair Path desk
+    participant Router as v4 SwapRouter
     participant PM as PoolManager
     participant Hook as FairPathHook
-    participant Policy as IFairFlowPolicy
-    participant FB as IFlashblockOracle
+    participant Oracle as UnichainFairOracle
     participant Bond as SearcherBond
     participant LPs as In-range LPs
 
-    User->>UI: Swap (or Bond, then Swap)
-    UI->>Router: swap / bond
-    Router->>PM: swap(poolKey, hookData)
-    PM->>Hook: beforeSwap(sender, key, params, hookData)
-    Hook->>Policy: isFair(block.number)
-    Hook->>FB: slot()
-    Hook->>Bond: bondedOf(searcher from hookData)
-    Hook-->>PM: override fee (attested | slot | toxic)
-    PM->>PM: execute swap
-    PM->>Hook: afterSwap(delta)
+    Trader->>Desk: faucet / LP / swap fpVOL-fpUSD
+    Desk->>Router: swapExactTokensForTokens hookData empty or searcher
+    Router->>PM: unlock swap
+    PM->>Hook: beforeSwap
+    Hook->>Oracle: isFair(block.number) and slot()
+    Hook->>Bond: bondedOf(searcher)
+    Hook-->>PM: override fee
+    PM->>PM: AMM swap
+    PM->>Hook: afterSwap delta
     alt attested
-        Hook-->>PM: no tax
-    else bonded + clean
-        Hook-->>PM: slot fee only
-    else bonded + violation
+        Hook-->>PM: zero tax delta
+    else bonded sandwich
         Hook->>Bond: slash
-        Hook->>PM: donate(slash) to LPs
-    else unattested unbonded
-        Hook->>PM: take tax of output
-        Hook->>PM: donate(tax) to LPs
+        Hook->>PM: donate to LPs
+    else toxic
+        Hook->>PM: take tax donate settle
     end
-    Hook-->>PM: emit SwapClassified
+    Searcher->>Bond: bond / queueUnbond / claimUnbond
+    Note over Desk,Oracle: TEE builder may incrementFlashblock same block
 ```
+
+**Desk surfaces:** Trade, LP, builders (TEE pulse), bond, tape (`SwapClassified` / `BondSlashed`).
+
+---
 
 ## Hook functions implemented
 
-| Function | Permission | What it does |
+| Surface | Permission | Behavior |
 |---|---|---|
-| `getHookPermissions` | — | Enables `afterInitialize`, `beforeSwap`, `afterSwap`, `afterSwapReturnDelta`. |
-| `_afterInitialize` | `afterInitialize` | Reverts unless the pool uses the **dynamic-fee flag**. |
-| `_beforeSwap` | `beforeSwap` | Reads fairness, flashblock slot, and bond; returns override fee with `OVERRIDE_FEE_FLAG`. |
-| `_afterSwap` | `afterSwap` + return delta | Recaptures toxic tax and/or slashes a violating bond; `take` → `donate` → `settle`; emits `SwapClassified`. |
-| `bond` / `unbond` | — | Searcher capital in; delayed capital out. |
+| `getHookPermissions` | — | `afterInitialize`, `beforeSwap`, `afterSwap`, `afterSwapReturnDelta` |
+| `_afterInitialize` | `afterInitialize` | revert `NotDynamicFee` unless `DYNAMIC_FEE_FLAG` |
+| `_beforeSwap` | `beforeSwap` | classify corridor; return fee \| `OVERRIDE_FEE_FLAG` |
+| `_afterSwap` | `afterSwap` + return delta | toxic recapture and/or slash; emit `SwapClassified` |
+| `slotFee(uint8)` | view | public slot schedule |
+| `SearcherBond.bond` | — | post fpUSD (bond asset = token1) |
+| `SearcherBond.queueUnbond` / `claimUnbond` | — | delayed exit |
+| `SearcherBond.slash` | hook only | pay LPs via hook donate |
+| `UnichainFairOracle.incrementFlashblock` | builder / TEE policy | local fairness heartbeat |
+| `UnichainFairOracle.setBuilder` | owner | enroll Flashtestation / TEE keys |
+| `DeskRunner` | agent | same-block attested / toxic / bonded bursts |
 
-**On-chain parameters & state**
+---
 
-| Name | Value / type | Meaning |
-|---|---|---|
-| `ATTESTED_FEE` | `500` (0.05%) | Retail fee for attested-fair blocks |
-| `TOXIC_FEE` | `10_000` (1.00%) | Premium fee for unattested, unbonded flow |
-| `TOXIC_TAX_BIPS` | `50` (0.50%) | Cut of the output leg donated to LPs on the toxic path |
-| `SLOT_FEE[0..4]` | increasing → decreasing | Unattested bonded fee by flashblock slot |
-| `MIN_BOND` | `uint256` | Minimum fpVOL to take the bonded corridor |
-| `SLASH_BIPS` | `uint256` | Fraction of bond donated on a published-rule hit |
-| `UNBOND_DELAY` | `uint256` | Blocks before `unbond` completes (stops hit-and-run) |
-| `totalTaxDonated[poolId]` | `uint256` | Cumulative recapture + slashes for LPs |
-| `lastSwap[poolId]` | `struct` | Last classification (corridor, fee, tax, slot, searcher, block) |
-| `SwapClassified` | `event` | Per-swap source of truth for the analytics tape |
-| `BondSlashed` | `event` | Searcher, amount, victim swap, rule id |
+## Deployments — Unichain Sepolia (chainId 1301)
 
-**Oracle seams**
+Hooks are **fixed**. Shared Uniswap v4 periphery is the Unichain Sepolia canonical set.
 
-```solidity
-interface IFairFlowPolicy {
-    function isFair(uint256 blockNumber) external view returns (bool);
-    function fairUntilBlock() external view returns (uint256);
-}
+| Contract | Address |
+|---|---|
+| **FairPathHook** | [`0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4`](https://sepolia.uniscan.xyz/address/0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4) |
+| **UnichainFairOracle** (policy + slots) | [`0x023E26027269f7b86Db07af08f640217FbD6E8Fa`](https://sepolia.uniscan.xyz/address/0x023E26027269f7b86Db07af08f640217FbD6E8Fa) |
+| **SearcherBond** | [`0xa0bbbffc04B7cFaD6CfC6Bb78245c1D49Ae5CF77`](https://sepolia.uniscan.xyz/address/0xa0bbbffc04B7cFaD6CfC6Bb78245c1D49Ae5CF77) |
+| **DeskRunner** (agent) | [`0xca2985A449C528c702c7a10e9f947234381ABA0E`](https://sepolia.uniscan.xyz/address/0xca2985A449C528c702c7a10e9f947234381ABA0E) |
+| fpVOL (token0) | [`0x465F7D399884D0b8c3b1af358036B50333Ac2f31`](https://sepolia.uniscan.xyz/address/0x465F7D399884D0b8c3b1af358036B50333Ac2f31) |
+| fpUSD (token1, bond asset) | [`0x67CD45F3d37be29e6151a9AC5a053cB8Cb671803`](https://sepolia.uniscan.xyz/address/0x67CD45F3d37be29e6151a9AC5a053cB8Cb671803) |
+| PoolManager | [`0x00B036B58a818B1BC34d502D3fE730Db729e62AC`](https://sepolia.uniscan.xyz/address/0x00B036B58a818B1BC34d502D3fE730Db729e62AC) |
+| SwapRouter | [`0x9cD2b0a732dd5e023a5539921e0FD1c30E198Dba`](https://sepolia.uniscan.xyz/address/0x9cD2b0a732dd5e023a5539921e0FD1c30E198Dba) |
+| PositionManager | [`0xf969Aee60879C54bAAed9F3eD26147Db216Fd664`](https://sepolia.uniscan.xyz/address/0xf969Aee60879C54bAAed9F3eD26147Db216Fd664) |
+| Permit2 | [`0x000000000022D473030F116dDEE9F6B43aC78BA3`](https://sepolia.uniscan.xyz/address/0x000000000022D473030F116dDEE9F6B43aC78BA3) |
+| StateView | [`0xa7aE8a3974822496506E820C0B279f7C73A0e00e`](https://sepolia.uniscan.xyz/address/0xa7aE8a3974822496506E820C0B279f7C73A0e00e) |
 
-interface IFlashblockOracle {
-    function slot() external view returns (uint8); // 0..MAX_SLOT
-}
-```
+Pool fee flag: `8388608` (dynamic). Tick spacing: `60`. Deploy block: `61520858`. Addresses also live in `frontend/src/deployed.json`.
 
-Production oracle: `UnichainFairOracle` wrapping Unichain `FlashblockNumber` / `BlockBuilderPolicy`, or a local feed gated by `setBuilder`.
-
-## Why `sender` is not the searcher
-
-v4 `beforeSwap`'s `sender` is the **router**, not the wallet. Fair Path therefore:
-
-- treats empty `hookData` as the router (retail / untagged flow)
-- keys bonds on `abi.encode(searcher)` when a bonded agent opts in
-- never uses `tx.origin`
-
-The hook never uses `msg.sender` as user identity. `msg.sender` is the PoolManager.
+---
 
 ## Integrations
 
-| Layer | Integration | Used for |
-|---|---|---|
-| **Uniswap v4 core** | `PoolManager`, dynamic-fee override, `donate`, `BalanceDelta`, `CurrencySettler` | Fee control + LP recapture |
-| **OpenZeppelin** | `uniswap-hooks` `BaseHook` | Safe hook base + permission wiring |
-| **Flashbots / Unichain** | Flashtestations / `BlockBuilderPolicy` | Attestation source behind `IFairFlowPolicy` |
-| **Unichain** | Flashblocks | Slot oracle behind `IFlashblockOracle` |
-| **Frontend / SDK** | `@uniswap/v4-sdk`, `viem`, React | Dual-corridor quoting, slot slider, bond desk, live tape |
-
-**Partner integrations (hookathon README requirement)**
-
-- Flashbots Flashtestations — `IFairFlowPolicy` via `UnichainFairOracle` (live feed or owner-gated builders).
-- Unichain Flashblocks — `IFlashblockOracle.slot()` is `flashblockNumber % 5`.
+| Partner / layer | How Fair Path uses it |
+|---|---|
+| **Uniswap v4** | `PoolManager` callbacks, dynamic fees, `donate`, `CurrencySettler` |
+| **OpenZeppelin uniswap-hooks** | `BaseHook` permissions |
+| **Flashbots Flashtestations** | `IFairFlowPolicy` via `UnichainFairOracle` (live feed or owner-gated builders) |
+| **Unichain Flashblocks** | `IFlashblockOracle.slot()` = flashblock number mod 5 |
+| **Permit2 + POSM** | LP mint from the desk |
+| **viem + Uniswap v4 SDK** | quotes, swaps, live tape |
 
 No other partners are claimed.
 
-## Why it's profitable — as an idea and a business
+---
 
-Fair Path is not a fee grab. It is a **flywheel** that makes one pool the best venue for LPs *and* honest traders.
+## Why this is a business
+
+Fair Path is a **venue**, not a token gimmick. The customer who pays is toxic / first-look flow. The customer who stays is the LP. The product you sell to searchers is **licensed priority**.
 
 ```mermaid
 flowchart LR
-    A[Unattested / slot-0 / violator<br/>pays premium, tax, or slash] --> B[Value donated to LPs]
-    B --> C[Higher effective LP yield]
-    C --> D[More liquidity migrates in]
-    D --> E[Deeper pool · better prices]
-    E --> F[More attested retail at 0.05%]
-    F --> A
+    Pay[Toxic slot-0 violator pays fee tax slash] --> LP[Higher LP yield]
+    LP --> Liq[Liquidity migrates in]
+    Liq --> Px[Tighter market]
+    Px --> Retail[More attested retail at 0.05%]
+    Retail --> Vol[More flow to tax and bond]
+    Vol --> Pay
 ```
 
-**For LPs — sustainable yield.** Recapture and slashes come from the *exact* flow that used to bleed them. Risk-adjusted LP returns rise; liquidity sticks on volatile pairs.
+**Unit economics (v1)**
 
-**For honest traders — a cheap attested lane.** 0.05% vs 1.00%. Traders are paid, in fee terms, to route through Protect / attested builders.
+- **LP take:** 100% of toxic skim + slashes. That is the wedge vs vanilla v4 (where LVR leaves the pool).
+- **Searcher take:** exclusivity of a bonded slot vs racing the public mempool; they keep clean arb after the slot fee.
+- **Retail take:** 0.05% attested lane vs 1.00% public — wallets and Protect-style RPCs have a reason to point *here*.
+- **Protocol take (later):** a split on *searcher* tax/slash (e.g. 80/20 LP/protocol), **never** on attested retail. That is a MEV-native SaaS line: you tax the option AMMs currently give away.
 
-**For searchers — a legal product.** Bond, take slot 0, pay the slot fee, keep clean arb. Sandwiching is not "strategy"; it is a deductible.
+**Go-to-market:** volatile pairs (the LVR is largest), then wallets/builders that already attest, then a bond desk for solvers. The flywheel is liquidity: once LPs earn recapture, depth improves, retail follows, searchers must bond to stay in slot 0.
 
-**For the protocol — a MEV-derived fee line.** Today 100% of tax + slash goes to LPs. A later protocol split (e.g. 80/20) taxes **searchers**, never attested retail.
+**UHI10 fit:** sustainable liquidity (LPs paid by the flow that harmed them) + MEV protection (repriced + bonded toxic order flow) in **one hook**.
 
-**Why it fits UHI10.** The theme is *Sustainable Liquidity & MEV Protection*. Fair Path hits both: LPs earn from the flow that harms them, and toxic order flow is **repriced and bonded** instead of blindly served. It also hits the published win condition: **defense + recapture in one hook**, plus a partner (Flashbots) that does not appear in any of the 660 prior directory rows.
+---
 
 ## What this is not
 
-- Not an FHE dark pool (61 prior FHE submissions; UHI10 slide 7 calls them over-built).
-- Not a generic LVR first-in-block auction (53 prior).
-- Not a randomized delay (AsyncSwapHook and ~18 cousins).
-- Not three hooks glued in a README. One `FairPathHook`, one fee override, one donate sink.
+Not an FHE dark pool, not a generic TOB LVR auction, not a randomized delay, not three hooks glued in a README.
 
-## The console
+## Tests and layout
 
-Live: **https://uhi10-fair-path.vercel.app**
-
-Uniswap v4 SDK quotes against live pool state. Pages: Desk, Trade, Book, Tape, Builders, Notes. Pool is **fpVOL / fpUSD** (this hook’s mocks only).
-
-`forge test` covers toxic tax, attested heartbeat, unauthorized increment, bonded slot fee, same-block slash, static-fee init revert, bad hookData, unbond delay.
-
-## Repository layout
+`forge test` — units, differentiation, invariants, Unichain fork, DeskRunner.
 
 ```
-src/
-  FairPathHook.sol
-  SearcherBond.sol
-  UnichainFairOracle.sol
-  interfaces/
-test/
-  FairPathHook.t.sol
-script/
-  DeployUnichain.s.sol
-  PopulateTraffic.s.sol
-frontend/
+src/FairPathHook.sol  src/SearcherBond.sol  src/UnichainFairOracle.sol  src/DeskRunner.sol
+test/  script/  frontend/
 ```
 
 ## Hookathon gates
 
-- Public repo (this repository)
-- Valid Uniswap v4 hook
-- Functioning frontend: https://uhi10-fair-path.vercel.app
-- README partner integrations: Flashbots Flashtestations, Unichain Flashblocks
-- Video: attested vs slot-0 bonded vs toxic vs slash, no AI voice
-- Original work for UHI10; not a resubmission of the Fair Flow (attestation-only) capstone
+Public repo · valid v4 hook · live UI · partners Flashbots + Unichain Flashblocks · original UHI10 work (not Fair Flow resubmitted).
