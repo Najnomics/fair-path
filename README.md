@@ -4,7 +4,7 @@
 [![Uniswap v4](https://img.shields.io/badge/Uniswap-v4%20hook-7c8bff.svg)](https://docs.uniswap.org/contracts/v4/overview)
 [![Unichain Sepolia](https://img.shields.io/badge/Unichain-Sepolia%201301-00d395.svg)](https://sepolia.uniscan.xyz)
 
-**Live desk:** [uhi10-fair-path.vercel.app](https://uhi10-fair-path.vercel.app) · **Pool:** fpVOL / fpUSD · **Hook:** [`0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4`](https://sepolia.uniscan.xyz/address/0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4)
+**Live desk:** [uhi10-fair-path.vercel.app](https://uhi10-fair-path.vercel.app) · **Pitch:** [uhi10-fair-path-pitch.vercel.app](https://uhi10-fair-path-pitch.vercel.app) · **Pool:** fpVOL / fpUSD · **Hook:** [`0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4`](https://sepolia.uniscan.xyz/address/0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4)
 
 > Three corridors. One pool. Toxic flow pays LPs. Honest flow is cheap.
 
@@ -212,7 +212,7 @@ Not an FHE dark pool, not a generic TOB LVR auction, not a randomized delay, not
 
 ```
 src/FairPathHook.sol  src/SearcherBond.sol  src/UnichainFairOracle.sol  src/DeskRunner.sol
-test/  script/  frontend/
+test/  script/  frontend/  pitch/
 ```
 
 ## Hookathon gates
