@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fair Path — UHI10 · 5 minutes</title>
+  <style>
+    :root { --bg:#16110e; --ink:#f6eee6; --muted:#c4b2a4; --acc:#e08a4b; --line:#3a2c24; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+      font-family: "Iowan Old Style", Palatino, "Palatino Linotype", serif; }
+    .deck { height:100%; }
+    .slide { display:none; height:100%; padding:6vh 8vw; flex-direction:column; justify-content:center; }
+    .slide.on { display:flex; }
+    .kicker { color:var(--acc); letter-spacing:.14em; text-transform:uppercase; font-size:13px; font-family:ui-monospace,monospace; margin:0 0 12px; }
+    h1 { font-size:clamp(32px,6vw,64px); font-weight:600; margin:0 0 16px; line-height:1.05; }
+    h2 { font-size:clamp(26px,4vw,42px); font-weight:600; margin:0 0 20px; }
+    p, li { font-size:clamp(16px,2.1vw,24px); color:var(--muted); line-height:1.45; }
+    .lede { color:var(--ink); max-width:18em; }
+    ul { margin:0; padding-left:1.1em; }
+    li { margin:0 0 8px; }
+    code, .mono { font-family:ui-monospace,monospace; color:var(--acc); font-size:.9em; }
+    pre { background:#0f0c0a; border:1px solid var(--line); padding:16px 18px; overflow:auto; font-size:14px; line-height:1.45; color:#f0d8c4; }
+    table { border-collapse:collapse; width:100%; font-size:18px; }
+    th, td { text-align:left; padding:8px 12px 8px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--acc); font-weight:500; font-size:13px; letter-spacing:.08em; text-transform:uppercase; font-family:ui-monospace,monospace; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+    @media (max-width:800px) { .row { grid-template-columns:1fr; } }
+    .bar { position:fixed; bottom:16px; left:8vw; right:8vw; display:flex; justify-content:space-between; font-family:ui-monospace,monospace; font-size:12px; color:var(--muted); }
+    .hint { opacity:.7; }
+  </style>
+</head>
+<body>
+<div class="deck">
+
+<section class="slide on">
+  <p class="kicker">UHI10 · Fair Flow Frontier · Najnomics</p>
+  <h1>Fair Path</h1>
+  <p class="lede">One Uniswap v4 pool. Three corridors. Toxic flow pays LPs. Honest flow is cheap.</p>
+  <p>fpVOL / fpUSD · Unichain Sepolia · uhi10-fair-path.vercel.app</p>
+</section>
+
+<section class="slide">
+  <p class="kicker">What judges score</p>
+  <h2>Sustainable liquidity + MEV protection</h2>
+  <ul>
+    <li><strong style="color:var(--ink)">Shipped hook</strong> — real v4 callbacks, not a whitepaper.</li>
+    <li><strong style="color:var(--ink)">Live desk</strong> — swaps, LP, tape on Sepolia.</li>
+    <li><strong style="color:var(--ink)">Partner seam</strong> — Flashtestations + Unichain Flashblocks.</li>
+    <li><strong style="color:var(--ink)">Recapture</strong> — <code>donate</code> to in-range LPs, not a delay gimmick.</li>
+    <li><strong style="color:var(--ink)">Original</strong> — not Fair Flow resubmitted; corridors 1+2+5 in one hook.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <p class="kicker">The problem</p>
+  <h2>AMMs give searchers a free option on LPs</h2>
+  <table>
+    <tr><th>Usual fix</th><th>What it misses</th></tr>
+    <tr><td>Attestation only</td><td>Slot-0 searcher looks like unattested retail</td></tr>
+    <tr><td>Delay / encrypt</td><td>Punishes everyone; LVR still leaves</td></tr>
+    <tr><td>Size / vol fees</td><td>Whale and searcher look identical</td></tr>
+    <tr><td>TOB LVR auction</td><td>Sells who is first globally, not this pool</td></tr>
+  </table>
+</section>
+
+<section class="slide">
+  <p class="kicker">The idea</p>
+  <h2>Price the swap by three facts</h2>
+  <div class="row">
+    <div>
+      <p><strong style="color:var(--ink)">1. Who built the block</strong><br/>TEE / Flashtestations → 0.05%, no tax.</p>
+      <p><strong style="color:var(--ink)">2. Where in the block</strong><br/>Flashblock slot 0–4 → 0.80% down to 0.075% if bonded.</p>
+      <p><strong style="color:var(--ink)">3. Capital at risk</strong><br/>Unbonded public → 1.00% + 0.50% skim. Sandwich → slash 20% of bond.</p>
+    </div>
+    <div>
+      <p>Same liquidity. No dark pool. No wait. The price of <em>now</em> depends on fairness, slot, and bond.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <p class="kicker">How it works</p>
+  <h2>beforeSwap prices · afterSwap recaptures</h2>
+  <ul>
+    <li><code>_classify</code> — <code>isFair</code> → attested; else bonded → slot fee; else toxic.</li>
+    <li><code>_beforeSwap</code> — return fee with <code>OVERRIDE_FEE_FLAG</code>.</li>
+    <li><code>_afterSwap</code> — toxic: take / donate / settle. Bonded: same-block opposite swap slashes into donate.</li>
+    <li>v4 <code>sender</code> is the router. Searcher identity is 32-byte <code>hookData</code>.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <p class="kicker">Frontend — 60 seconds on the desk</p>
+  <h2>uhi10-fair-path.vercel.app</h2>
+  <ul>
+    <li>Confirm pool is <strong style="color:var(--ink)">fpVOL / fpUSD</strong> (not USDC/WETH).</li>
+    <li>Trade: swap 1 — watch corridor on the tape (<code>SwapClassified</code>).</li>
+    <li>Book: in-range LP (Permit2 → POSM).</li>
+    <li>Builders: TEE <code>incrementFlashblock</code> so the next swap can be attested.</li>
+    <li>Bond desk: searchers post fpUSD; unbond is delayed.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <p class="kicker">Code — classification</p>
+  <h2>src/FairPathHook.sol</h2>
+<pre>function _classify(address searcher) ... {
+    slot_ = flashblocks.slot();
+    if (policy.isFair(block.number))
+        return (Attested, ATTESTED_FEE, slot_);
+    if (bonds.bondedOf(searcher) >= bonds.minBond())
+        return (BondedSlot, _slotFee(slot_), slot_);
+    return (Toxic, TOXIC_FEE, slot_);
+}</pre>
+</section>
+
+<section class="slide">
+  <p class="kicker">Code — recapture</p>
+  <h2>afterSwap is the LP payout</h2>
+<pre>if (corridor == Toxic)
+    (taxAmount, taxCurrency, taxDelta) = _recapture(...);
+else if (corridor == BondedSlot)
+    taxDelta = _maybeSlash(...);  // same-block opposite swap
+
+// _recapture / slash → take → donate → settle
+emit SwapClassified(...);</pre>
+  <p>Insurance, not omniscience: one published rule, on-chain.</p>
+</section>
+
+<section class="slide">
+  <p class="kicker">Live Unichain Sepolia · 1301</p>
+  <h2>Do not redeploy the hook</h2>
+  <table>
+    <tr><th>Piece</th><th>Address</th></tr>
+    <tr><td>FairPathHook</td><td class="mono">0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4</td></tr>
+    <tr><td>Oracle</td><td class="mono">0x023E26027269f7b86Db07af08f640217FbD6E8Fa</td></tr>
+    <tr><td>Bonds</td><td class="mono">0xa0bbbffc04B7cFaD6CfC6Bb78245c1D49Ae5CF77</td></tr>
+    <tr><td>PoolManager</td><td class="mono">0x00B036B58a818B1BC34d502D3fE730Db729e62AC</td></tr>
+  </table>
+  <p><code>forge test</code> — units, differentiation, invariants, fork.</p>
+</section>
+
+<section class="slide">
+  <p class="kicker">Business</p>
+  <h2>Venue economics, not a token</h2>
+  <ul>
+    <li><strong style="color:var(--ink)">Who pays:</strong> toxic / slot-0 / violators (fee, skim, slash).</li>
+    <li><strong style="color:var(--ink)">Who stays:</strong> LPs — yield from the flow that used to bleed them.</li>
+    <li><strong style="color:var(--ink)">Who buys:</strong> searchers rent licensed first-look.</li>
+    <li><strong style="color:var(--ink)">Protocol later:</strong> split on tax/slash, never on attested 0.05% retail.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <p class="kicker">Why this wins the room</p>
+  <h2>Defense + recapture, one hook</h2>
+  <ul>
+    <li>Not FHE, not a 53rd TOB auction, not AsyncSwap delay.</li>
+    <li>Partners you can name: Flashbots Flashtestations, Unichain Flashblocks.</li>
+    <li>Shipped: live desk, live hook, tests.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <p class="kicker">Close</p>
+  <h1>Fair Path</h1>
+  <p class="lede">github.com/Najnomics/fair-path</p>
+  <p>uhi10-fair-path.vercel.app · hook 0xcC3E…10c4</p>
+  <p>Toxic flow pays. Honest flow is cheap.</p>
+</section>
+
+</div>
+<div class="bar"><span id="n"></span><span class="hint">← → space · F fullscreen</span></div>
+<script>
+const s=[...document.querySelectorAll('.slide')]; let i=0;
+function show(k){ i=(k+s.length)%s.length; s.forEach((el,j)=>el.classList.toggle('on',j===i)); document.getElementById('n').textContent=(i+1)+' / '+s.length; }
+show(0);
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)) { e.preventDefault(); show(i+1); }
+  if(['ArrowLeft','PageUp'].includes(e.key)) { e.preventDefault(); show(i-1); }
+  if(e.key==='f'||e.key==='F') document.documentElement.requestFullscreen?.();
+});
+addEventListener('click', e=>{ if(e.target.closest('pre,a')) return; show(e.clientX>innerWidth/2?i+1:i-1); });
+</script>
+</body>
+</html>
