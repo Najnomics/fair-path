@@ -40,6 +40,17 @@ export function AboutPage() {
               searcher.
             </li>
           </ul>
+          <h3>Agents</h3>
+          <p>
+            A bonded searcher is already an agent. Pass{" "}
+            <code>abi.encode(agent)</code> as <code>hookData</code> and the hook
+            prices the flashblock slot against that address. Attestation only
+            lasts the same block as <code>incrementFlashblock</code>, so a
+            keeper must pulse and swap atomically — that is what{" "}
+            <code>DeskRunner</code> does on Unichain Sepolia
+            { !isZero(addresses.agent) ? ` (${short(addresses.agent)})` : "" }
+            .
+          </p>
         </div>
       </section>
 

@@ -116,8 +116,14 @@ body::before {
 .path-foot a:hover {
   color: var(--fair);
 }
-.path-app .content {
-  padding-top: 32px;
+.path-mast {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.tape {
+  max-height: 720px;
+}
+.stat-value.fair {
+  text-shadow: 0 0 22px rgba(227, 176, 106, 0.35);
 }
 
 .btn {

@@ -69,7 +69,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       readPolicy(),
       readTotalRecaptured(),
       readLastSwap(),
-      readSwapEvents(60),
+      readSwapEvents(80),
     ]);
     if (p.status === "fulfilled") setPool(p.value);
     if (b.status === "fulfilled") setBalances(b.value);

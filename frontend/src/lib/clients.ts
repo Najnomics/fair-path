@@ -78,6 +78,7 @@ export const addresses = {
   oracle: oracleOrPolicy,
   bonds: addr("bonds"),
   relayer: addr("relayer"),
+  agent: addr("agent"),
   swapRouter: addr("swapRouter"),
   stateView: addr("stateView"),
   positionManager: addr("positionManager"),

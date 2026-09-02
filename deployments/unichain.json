@@ -15,5 +15,6 @@
   "token0Symbol": "fpVOL",
   "token1Symbol": "fpUSD",
   "fee": 8388608,
-  "tickSpacing": 60
+  "tickSpacing": 60,
+  "agent": "0x9E845D655047E20EEfF59B3ab4D1E5b935596BB3"
 }

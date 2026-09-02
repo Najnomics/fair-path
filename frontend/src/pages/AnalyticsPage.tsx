@@ -165,7 +165,7 @@ export function AnalyticsPage() {
         ) : (
           <ul className="tape">
             {events.map((e) => (
-              <li key={e.txHash} className={`row ${e.attested ? "fair" : "toxic"}`}>
+              <li key={`${e.txHash}:${e.logIndex}`} className={`row ${e.attested ? "fair" : "toxic"}`}>
                 <span className={`tag ${e.attested ? "fair" : "toxic"}`}>
                   {e.attested ? "ATTESTED" : "TOXIC"}
                 </span>
