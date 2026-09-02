@@ -24,6 +24,8 @@ contract SearcherBond is Ownable, ReentrancyGuard, ISearcherBond {
     mapping(address => uint256) public unbondReadyBlock;
 
     event HookSet(address indexed hook);
+    event MinBondSet(uint256 minBond);
+    event UnbondDelaySet(uint256 unbondDelay);
     event Bonded(address indexed searcher, uint256 amount, uint256 total);
     event UnbondQueued(address indexed searcher, uint256 amount, uint256 readyBlock);
     event UnbondClaimed(address indexed searcher, uint256 amount);
@@ -34,6 +36,7 @@ contract SearcherBond is Ownable, ReentrancyGuard, ISearcherBond {
     error InsufficientBond();
     error UnbondNotReady();
     error ZeroAmount();
+    error ZeroAddress();
 
     constructor(address owner_, IERC20 asset_, uint256 minBond_, uint256 unbondDelay_) Ownable(owner_) {
         bondToken = asset_;
@@ -46,18 +49,26 @@ contract SearcherBond is Ownable, ReentrancyGuard, ISearcherBond {
     }
 
     function setHook(address hook_) external onlyOwner {
+        if (hook_ == address(0)) revert ZeroAddress();
         hook = hook_;
         emit HookSet(hook_);
     }
 
     function setMinBond(uint256 minBond_) external onlyOwner {
         minBond = minBond_;
+        emit MinBondSet(minBond_);
+    }
+
+    function setUnbondDelay(uint256 unbondDelay_) external onlyOwner {
+        unbondDelay = unbondDelay_;
+        emit UnbondDelaySet(unbondDelay_);
     }
 
     function bond(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         bondToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 total = bondedOf[msg.sender] + amount;
+        if (total < minBond) revert BelowMinBond();
         bondedOf[msg.sender] = total;
         emit Bonded(msg.sender, amount, total);
     }

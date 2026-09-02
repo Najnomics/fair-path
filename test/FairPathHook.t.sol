@@ -183,4 +183,71 @@ contract FairPathHookTest is BaseTest {
         vm.stopPrank();
         assertEq(bonds.bondedOf(searcher), 0);
     }
+
+    function test_dustBondStaysToxicAfterMinRaised() public {
+        vm.prank(searcher);
+        bonds.bond(5e18);
+        bonds.setMinBond(10e18);
+        _swap(abi.encode(searcher));
+        (FairPathHook.Corridor corridor,,,,,,,) = hook.lastSwap(poolId);
+        assertEq(uint8(corridor), uint8(FairPathHook.Corridor.Toxic));
+    }
+
+    function test_sameDirectionDoesNotSlash() public {
+        vm.prank(searcher);
+        bonds.bond(10e18);
+        uint256 before = bonds.bondedOf(searcher);
+        _swap(abi.encode(searcher));
+        _swap(abi.encode(searcher));
+        assertEq(bonds.bondedOf(searcher), before);
+    }
+
+    function test_slotFees() public {
+        assertEq(hook.slotFee(0), hook.SLOT0_FEE());
+        assertEq(hook.slotFee(1), hook.SLOT1_FEE());
+        assertEq(hook.slotFee(2), hook.SLOT2_FEE());
+        assertEq(hook.slotFee(3), hook.SLOT3_FEE());
+        assertEq(hook.slotFee(4), hook.SLOT4_FEE());
+        assertEq(hook.slotFee(9), hook.SLOT4_FEE());
+    }
+
+    function test_bondedSlotAfterIncrements() public {
+        vm.prank(searcher);
+        bonds.bond(5e18);
+        oracle.incrementFlashblock();
+        oracle.incrementFlashblock();
+        vm.roll(block.number + 1); // heartbeat expired → bonded corridor, slot = 2
+        _swap(abi.encode(searcher));
+        (, uint24 fee,,,,,,) = hook.lastSwap(poolId);
+        assertEq(fee, hook.SLOT2_FEE());
+    }
+
+    function test_zeroSearcherHookDataReverts() public {
+        vm.expectRevert();
+        _swap(abi.encode(address(0)));
+    }
+
+    function testFuzz_toxicTaxPositive(uint96 amt) public {
+        uint256 amountIn = bound(uint256(amt), 2e18, 40e18);
+        swapRouter.swapExactTokensForTokens({
+            amountIn: amountIn,
+            amountOutMin: 0,
+            zeroForOne: true,
+            poolKey: poolKey,
+            hookData: "",
+            receiver: address(this),
+            deadline: block.timestamp + 1
+        });
+        (,, uint256 taxAmount,,,,,) = hook.lastSwap(poolId);
+        assertGt(taxAmount, 0);
+        assertEq(hook.totalTaxDonated(poolId), taxAmount);
+    }
+
+    function test_permissions() public {
+        Hooks.Permissions memory p = hook.getHookPermissions();
+        assertTrue(p.beforeSwap);
+        assertTrue(p.afterSwap);
+        assertTrue(p.afterSwapReturnDelta);
+        assertFalse(p.beforeSwapReturnDelta);
+    }
 }

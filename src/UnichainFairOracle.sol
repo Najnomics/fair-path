@@ -31,6 +31,7 @@ contract UnichainFairOracle is Ownable, IFairFlowPolicy, IFlashblockOracle {
 
     error NotBuilder();
     error ExternalFeedActive();
+    error ZeroAddress();
 
     constructor(address owner_, address flashblockNumber_, address blockBuilderPolicy_) Ownable(owner_) {
         if (flashblockNumber_ != address(0)) {
@@ -48,6 +49,7 @@ contract UnichainFairOracle is Ownable, IFairFlowPolicy, IFlashblockOracle {
     }
 
     function setBuilder(address builder, bool allowed) external onlyOwner {
+        if (builder == address(0)) revert ZeroAddress();
         builders[builder] = allowed;
         emit BuilderSet(builder, allowed);
     }

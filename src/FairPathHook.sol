@@ -174,10 +174,17 @@ contract FairPathHook is BaseHook {
         if (policy.isFair(block.number)) {
             return (Corridor.Attested, ATTESTED_FEE, slot_);
         }
-        if (bonds.bondedOf(searcher) > 0) {
+        if (bonds.bondedOf(searcher) >= bonds.minBond() && bonds.minBond() > 0) {
+            return (Corridor.BondedSlot, _slotFee(slot_), slot_);
+        }
+        if (bonds.minBond() == 0 && bonds.bondedOf(searcher) > 0) {
             return (Corridor.BondedSlot, _slotFee(slot_), slot_);
         }
         return (Corridor.Toxic, TOXIC_FEE, slot_);
+    }
+
+    function slotFee(uint8 slot_) public pure returns (uint24) {
+        return _slotFee(slot_);
     }
 
     function _slotFee(uint8 slot_) internal pure returns (uint24) {

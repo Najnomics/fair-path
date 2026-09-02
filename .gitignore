@@ -21,6 +21,8 @@ frontend/node_modules/
 
 # Vercel
 .vercel/
+frontend/.vercel/
+frontend/.env.local
 
 # Local Anvil artifacts
 /tmp/

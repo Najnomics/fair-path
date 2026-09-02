@@ -126,18 +126,26 @@ contract DeployUnichainScript is Script, Deployers {
         string memory json = string.concat(
             "{\n",
             '  "chainId": ', vm.toString(chainId), ",\n",
+            '  "deployBlock": ', vm.toString(block.number), ",\n",
             '  "hook": "', vm.toString(address(hook)), '",\n',
             '  "oracle": "', vm.toString(address(oracle)), '",\n',
+            '  "policy": "', vm.toString(address(oracle)), '",\n',
             '  "bonds": "', vm.toString(address(bonds)), '",\n',
             '  "poolManager": "', vm.toString(address(poolManager)), '",\n',
             '  "swapRouter": "', vm.toString(address(swapRouter)), '",\n',
             '  "positionManager": "', vm.toString(address(positionManager)), '",\n',
+            '  "permit2": "', vm.toString(address(permit2)), '",\n',
             '  "stateView": "', vm.toString(address(stateView)), '",\n',
             '  "token0": "', vm.toString(address(usd)), '",\n',
-            '  "token1": "', vm.toString(address(vol)), '"\n',
+            '  "token1": "', vm.toString(address(vol)), '",\n',
+            '  "token0Symbol": "', usd.symbol(), '",\n',
+            '  "token1Symbol": "', vol.symbol(), '",\n',
+            '  "fee": 8388608,\n',
+            '  "tickSpacing": 60\n',
             "}\n"
         );
         vm.writeFile("deployments/unichain.json", json);
+        vm.writeFile("frontend/src/deployed.json", json);
         console2.log("hook", address(hook));
     }
 }
