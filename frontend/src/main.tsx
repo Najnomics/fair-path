@@ -2,6 +2,7 @@ import { StrictMode, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "./styles.css";
+import "./theme.css";
 import { isDeployed } from "./lib/clients";
 import { AppDataProvider } from "./context/AppData";
 import { ToastProvider } from "./context/Toast";

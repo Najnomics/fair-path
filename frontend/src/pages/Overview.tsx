@@ -7,7 +7,6 @@ import { faucet, incrementFlashblock, mine } from "../lib/actions";
 import { compact, fmt, symbolFor } from "../lib/format";
 import {
   IconBolt,
-  IconChart,
   IconCoins,
   IconDrop,
   IconLock,
@@ -23,34 +22,46 @@ export function Overview() {
 
   return (
     <div className="grid" style={{ gap: 22 }}>
-      <section className="hero">
-        <span className="hero-eyebrow">● UHI10 · Sustainable Liquidity & MEV Protection</span>
-        <h1>
-          Three corridors. One pool.{" "}
-          <span className="grad">Tax toxic flow, rent first-look, attest the rest.</span>
-        </h1>
-        <p>
-          Fair Path is a Uniswap v4 hook with three corridors on a single pool:
-          attested TEE flow at retail fees, bonded searchers paying slot-priced
-          first-look, and unbonded toxic flow taxed with a donate to in-range LPs.
-          Same-block opposite swaps slash 20% of the bond.
-        </p>
-        <div className="hero-cta">
-          <Link to="/swap" className="btn btn-primary">
-            <IconSwap /> Try a swap
-          </Link>
-          <Link to="/analytics" className="btn btn-outline">
-            <IconChart /> See the flow
-          </Link>
-          <Link to="/about" className="btn btn-outline">
-            How it works
-          </Link>
+      <section className="hero desk-spread">
+        <div>
+          <p className="desk-kicker">Issue 01 · UHI10 · Unichain Sepolia</p>
+          <h1>
+            Three corridors. One pool.{" "}
+            <span className="grad">Tax toxic flow, rent first-look, attest the rest.</span>
+          </h1>
+          <p>
+            Fair Path is a Uniswap v4 hook with three corridors on a single pool:
+            attested TEE flow at retail fees, bonded searchers paying slot-priced
+            first-look, and unbonded toxic flow taxed with a donate to in-range LPs.
+            Same-block opposite swaps slash 20% of the bond.
+          </p>
+          <div className="hero-cta">
+            <Link to="/swap" className="btn btn-primary">
+              <IconSwap /> Open the desk
+            </Link>
+            <Link to="/about" className="btn btn-outline">
+              Read the notes
+            </Link>
+          </div>
         </div>
-        <svg className="hero-flow" viewBox="0 0 380 260">
-          <path d="M0 200 C 90 200 90 80 190 80 S 290 200 380 200" stroke="#34e1a4" />
-          <path d="M0 230 C 90 230 90 130 190 130 S 290 30 380 30" stroke="#7c8bff" />
-          <path d="M0 160 C 90 160 90 40 190 40 S 290 160 380 160" stroke="#ff5f6d" opacity="0.6" />
-        </svg>
+        <ol className="desk-lanes">
+          <li>
+            <span>Attested TEE</span>
+            <b>5 bps</b>
+          </li>
+          <li>
+            <span>Bonded first-look</span>
+            <b>slot rent</b>
+          </li>
+          <li>
+            <span>Toxic public</span>
+            <b>1% + tax</b>
+          </li>
+          <li>
+            <span>Same-block opposite</span>
+            <b>slash 20%</b>
+          </li>
+        </ol>
       </section>
 
       <section className="grid cols-4">
@@ -197,7 +208,7 @@ function QuickActions() {
             <QuickCard
               icon={<IconCoins />}
               title="Get test tokens"
-              body="Mint 10,000 ffVOL + ffUSD to your wallet."
+              body="Mint 10,000 fpVOL + fpUSD to your wallet."
               action="Faucet"
               busy={busy === "Minted test tokens"}
               disabled={!!busy}

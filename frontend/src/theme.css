@@ -1,0 +1,221 @@
+:root {
+  --bg: #16100c;
+  --bg-1: #1e1510;
+  --bg-2: #261c16;
+  --surface: #2a1d16;
+  --surface-2: #33241b;
+  --surface-3: #3d2c21;
+  --line: #4a3426;
+  --line-2: #6a4a34;
+  --text: #f6ead9;
+  --text-2: #cbb8a0;
+  --muted: #8d7460;
+  --fair: #e3b06a;
+  --fair-2: #f3d19a;
+  --fair-dim: #3a2a16;
+  --toxic: #e24a32;
+  --toxic-2: #ff7a62;
+  --toxic-dim: #3a1610;
+  --accent: #c45c26;
+  --accent-2: #e07840;
+  --gold: #f3d19a;
+  --radius: 3px;
+  --radius-lg: 4px;
+  --radius-sm: 2px;
+  --shadow: none;
+  --shadow-sm: none;
+  --glow-fair: none;
+  --glow-toxic: none;
+  --font: "Figtree", "Segoe UI", sans-serif;
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body::before {
+  background:
+    radial-gradient(800px 400px at 0% 0%, rgba(196, 92, 38, 0.22), transparent 55%),
+    radial-gradient(700px 500px at 100% 10%, rgba(227, 176, 106, 0.08), transparent 50%);
+}
+
+.path-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.path-mast {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0 28px;
+  border-bottom: 2px solid var(--accent);
+  background: var(--bg-1);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.path-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  padding: 18px 8px 18px 0;
+  letter-spacing: -0.03em;
+}
+.path-rule {
+  width: 4px;
+  height: 28px;
+  background: var(--fair);
+}
+.path-nav {
+  display: flex;
+  align-items: stretch;
+  margin-left: 12px;
+  flex: 1;
+}
+.path-nav a {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--text-2);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 3px solid transparent;
+}
+.path-nav a:hover,
+.path-nav a.on {
+  color: var(--fair);
+  border-bottom-color: var(--fair);
+}
+.path-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.path-burger {
+  display: none;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 8px 12px;
+  font: inherit;
+}
+.path-foot {
+  margin-top: auto;
+  padding: 18px 28px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.path-foot a:hover {
+  color: var(--fair);
+}
+.path-app .content {
+  padding-top: 32px;
+}
+
+.btn {
+  border-radius: 2px;
+  color: #1a100a;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff8ee;
+  box-shadow: none;
+}
+.btn-outline,
+.btn-ghost {
+  border-radius: 2px;
+}
+.card,
+.card-lg {
+  border-radius: 2px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.hero,
+.desk-spread {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 36px;
+  align-items: start;
+  background: var(--bg-1);
+  border: none;
+  border-bottom: 8px double var(--fair);
+  border-radius: 0;
+  padding: 12px 8px 36px;
+}
+.hero-flow {
+  display: none;
+}
+.desk-lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+}
+.desk-lanes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+}
+.desk-lanes li:last-child {
+  border-bottom: none;
+}
+.desk-lanes b {
+  color: var(--fair);
+}
+.desk-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+.hero h1 .grad {
+  background: none;
+  color: var(--fair);
+  -webkit-text-fill-color: var(--fair);
+}
+.cta-band {
+  background: var(--accent);
+  color: #fff8ee;
+  border-radius: 0;
+}
+.cta-band h2,
+.cta-band p {
+  color: #fff8ee;
+}
+
+@media (max-width: 900px) {
+  .path-burger {
+    display: inline-flex;
+    align-self: center;
+  }
+  .path-nav {
+    display: none;
+  }
+  .path-nav.open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: var(--bg-1);
+    border-bottom: 2px solid var(--accent);
+    padding: 8px 0 16px;
+  }
+  .path-nav.open a {
+    padding: 12px 28px;
+  }
+}
