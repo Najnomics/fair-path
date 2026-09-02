@@ -111,7 +111,7 @@ This is not a delay hook. Nothing waits. The swap executes now. The **price of n
 
 ## Corridor 3 — searcher bond (who is allowed first-look)
 
-Priority is rented. A searcher calls `bond(amount)` with WETH (or the pool's native). While `bonds[searcher] >= MIN_BOND`:
+Priority is rented. A searcher calls `bond(amount)` in **fpVOL** (`SearcherBond.asset()`, also token0 of this pool). While `bondedOf(searcher) >= minBond`:
 
 - they may take the **bonded slot-fee path** instead of the toxic 1.00% path
 - they are subject to a **published, on-chain rule**
@@ -122,7 +122,7 @@ Priority is rented. A searcher calls `bond(amount)` with WETH (or the pool's nat
 |---|---|---|
 | Same-block opposite-direction swap from the bonded address | This block | Slash `SLASH_BIPS` of the bond |
 
-Slashed principal is `donate`d to in-range LPs of **this** pool. Retail never bonds. Identity is passed as a searcher address in `hookData` (the v4 `sender` is the router, never the end user — see below).
+Slashed principal is `donate`d to in-range LPs of **this** pool (fpVOL/fpUSD). Retail never bonds. Identity is passed as a searcher address in `hookData` (the v4 `sender` is the router, never the end user — see below).
 
 ```solidity
 interface ISearcherBond {
@@ -188,7 +188,7 @@ sequenceDiagram
 | `TOXIC_FEE` | `10_000` (1.00%) | Premium fee for unattested, unbonded flow |
 | `TOXIC_TAX_BIPS` | `50` (0.50%) | Cut of the output leg donated to LPs on the toxic path |
 | `SLOT_FEE[0..4]` | increasing → decreasing | Unattested bonded fee by flashblock slot |
-| `MIN_BOND` | `uint256` | Minimum WETH to take the bonded corridor |
+| `MIN_BOND` | `uint256` | Minimum fpVOL to take the bonded corridor |
 | `SLASH_BIPS` | `uint256` | Fraction of bond donated on a published-rule hit |
 | `UNBOND_DELAY` | `uint256` | Blocks before `unbond` completes (stops hit-and-run) |
 | `totalTaxDonated[poolId]` | `uint256` | Cumulative recapture + slashes for LPs |
@@ -215,9 +215,9 @@ Production oracle: `UnichainFairOracle` wrapping Unichain `FlashblockNumber` / `
 
 v4 `beforeSwap`'s `sender` is the **router**, not the wallet. Fair Path therefore:
 
-- keys bonds on an address passed in `hookData` (and, on the demo router, `tx.origin` as a fallback the README must not pretend is production-safe)
-- treat ERC-4337 bundlers as unattested unless they attest or bond
-- allowlist the demo router in tests; production should allowlist Universal Router / a Fair Path router that authenticates the searcher (session key, EIP-712 in `hookData`, or Permit2 witness)
+- treats empty `hookData` as the router (retail / untagged flow)
+- keys bonds on `abi.encode(searcher)` when a bonded agent opts in
+- never uses `tx.origin`
 
 The hook never uses `msg.sender` as user identity. `msg.sender` is the PoolManager.
 
@@ -269,16 +269,11 @@ flowchart LR
 - Not a randomized delay (AsyncSwapHook and ~18 cousins).
 - Not three hooks glued in a README. One `FairPathHook`, one fee override, one donate sink.
 
-## The console (to be built)
+## The console
 
-A functional frontend is the judge path. Planned pages, all talking to the hook (not a mock UI):
+Live: **https://uhi10-fair-path.vercel.app**
 
-- **Overview** — KPIs: recaptured, attested vs slot vs toxic fills, bonded TVL, fair-window status.
-- **Swap** — three quotes side by side (attested / bonded-slot / toxic). Execute any path.
-- **Flashblocks** — slot slider 0–4; same size; fee and LP credit change live.
-- **Bond desk** — post / unbond, min-bond, slash history.
-- **Attestation** — registered builder `incrementFlashblock`; watch corridor 1 flip.
-- **Analytics** — `SwapClassified` + `BondSlashed` tape.
+Uniswap v4 SDK quotes against live pool state. Pages: Desk, Trade, Book, Tape, Builders, Notes. Pool is **fpVOL / fpUSD** (this hook’s mocks only).
 
 `forge test` covers toxic tax, attested heartbeat, unauthorized increment, bonded slot fee, same-block slash, static-fee init revert, bad hookData, unbond delay.
 
@@ -294,13 +289,15 @@ test/
   FairPathHook.t.sol
 script/
   DeployUnichain.s.sol
+  PopulateTraffic.s.sol
+frontend/
 ```
 
 ## Hookathon gates
 
 - Public repo (this repository)
 - Valid Uniswap v4 hook
-- Functioning frontend that calls the hook (see `FRONTEND.md` — Opus 4.8)
+- Functioning frontend: https://uhi10-fair-path.vercel.app
 - README partner integrations: Flashbots Flashtestations, Unichain Flashblocks
 - Video: attested vs slot-0 bonded vs toxic vs slash, no AI voice
 - Original work for UHI10; not a resubmission of the Fair Flow (attestation-only) capstone

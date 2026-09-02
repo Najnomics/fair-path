@@ -1,4 +1,4 @@
-export const fairFlowHookAbi = [
+export const hookAbi = [
   {
     type: "function",
     name: "ATTESTED_FEE",

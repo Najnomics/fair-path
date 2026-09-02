@@ -1,6 +1,6 @@
 {
   "chainId": 1301,
-  "deployBlock": 61531010,
+  "deployBlock": 61520858,
   "hook": "0xcC3E3A4811a8eA4e529c4949EC7a18A319c310c4",
   "oracle": "0x023E26027269f7b86Db07af08f640217FbD6E8Fa",
   "policy": "0x023E26027269f7b86Db07af08f640217FbD6E8Fa",
@@ -10,11 +10,11 @@
   "positionManager": "0xf969Aee60879C54bAAed9F3eD26147Db216Fd664",
   "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
   "stateView": "0xa7aE8a3974822496506E820C0B279f7C73A0e00e",
-  "token0": "0xaFf90028ee78179a981C77060EAe3741a991ca7A",
-  "token1": "0xc05E682d45B14279b2067a4e3fF2703175a540b7",
-  "token0Symbol": "USDC",
-  "token1Symbol": "WETH",
+  "token0": "0x465F7D399884D0b8c3b1af358036B50333Ac2f31",
+  "token1": "0x67CD45F3d37be29e6151a9AC5a053cB8Cb671803",
+  "token0Symbol": "fpVOL",
+  "token1Symbol": "fpUSD",
   "fee": 8388608,
   "tickSpacing": 60,
-  "agent": "0xa2EAADEAd374702bb3d30e565e54C4cb1d09963E"
+  "agent": "0xca2985A449C528c702c7a10e9f947234381ABA0E"
 }

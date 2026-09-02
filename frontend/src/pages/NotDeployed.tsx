@@ -7,7 +7,7 @@ export function NotDeployed() {
         No deployment manifest found. Deploy Fair Path and reload:
       </p>
       <p style={{ marginTop: 18 }}>
-        <code>./scripts/demo.sh</code>
+        <code>./scripts/deploy-unichain.sh</code>
       </p>
       <p className="muted" style={{ marginTop: 18 }}>
         This writes <code>frontend/src/deployed.json</code> with the pool, hook,

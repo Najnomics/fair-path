@@ -8,9 +8,12 @@ export function AboutPage() {
         <div className="prose">
           <h2 style={{ marginTop: 0 }}>The idea</h2>
           <p>
-            The live pool is a Unichain Sepolia <b>WETH / USDC</b> mock (18
-            decimals, faucet-mintable) so the desk reads like a real pair. It is
-            not mainnet canonical USDC.
+            The live pool is Unichain Sepolia{" "}
+            <b>
+              {addresses.token0Symbol} / {addresses.token1Symbol}
+            </b>{" "}
+            (18-decimal mocks for this hook only — not mainnet USDC/WETH, and
+            not shared with the sibling products).
           </p>
           <p>
             <b>Attested</b> TEE / fair blocks trade at <b>5 bps</b> with no tax.
@@ -36,8 +39,9 @@ export function AboutPage() {
               tax. Corridor 0 is attested on the charts.
             </li>
             <li>
-              Retail swaps send empty <code>hookData</code> — the sender is the
-              searcher.
+              Retail swaps send empty <code>hookData</code>. The v4 sender is
+              the router, not the wallet. Bonded identity is{" "}
+              <code>abi.encode(searcher)</code> (32 bytes) — not a signature.
             </li>
           </ul>
           <h3>Agents</h3>
