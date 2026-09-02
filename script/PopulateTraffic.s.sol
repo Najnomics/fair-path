@@ -44,7 +44,8 @@ contract DeskRunner {
         t1.mint(address(this), mintAmt);
         t0.approve(address(router), type(uint256).max);
         t1.approve(address(router), type(uint256).max);
-        IERC20 asset = IERC20(bonds.asset());
+        IMintable asset = IMintable(bonds.asset());
+        asset.mint(address(this), mintAmt);
         asset.approve(address(bonds), type(uint256).max);
         if (bonds.bondedOf(address(this)) < bonds.minBond()) {
             bonds.bond(bonds.minBond());
@@ -95,12 +96,12 @@ contract PopulateTrafficScript is Script {
         vm.startBroadcast(pk);
         DeskRunner runner = new DeskRunner(IUniswapV4Router04(payable(router)), IOracle(oracle), IBond(bonds), key);
         IOracle(oracle).setBuilder(address(runner), true);
-        runner.arm(IMintable(token0), IMintable(token1), 50_000 ether);
-        runner.burstAttested(6, 25 ether);
-        runner.burstToxic(8, 40 ether);
-        runner.burstBonded(6, 20 ether);
-        runner.burstAttested(4, 15 ether);
-        runner.burstToxic(6, 30 ether);
+        runner.arm(IMintable(token0), IMintable(token1), 200_000 ether);
+        runner.burstAttested(6, 2 ether);
+        runner.burstToxic(8, 3 ether);
+        runner.burstBonded(6, 1 ether);
+        runner.burstAttested(4, 1 ether);
+        runner.burstToxic(6, 2 ether);
         vm.stopBroadcast();
 
         console2.log("DeskRunner", address(runner));

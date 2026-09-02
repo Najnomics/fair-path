@@ -8,9 +8,9 @@ export function AboutPage() {
         <div className="prose">
           <h2 style={{ marginTop: 0 }}>The idea</h2>
           <p>
-            Most MEV is a pricing failure. One pool should not charge a retail
-            swapper and a sandwich the same fee. <b>Fair Path</b> prices three
-            corridors on the same Uniswap v4 pool.
+            The live pool is a Unichain Sepolia <b>WETH / USDC</b> mock (18
+            decimals, faucet-mintable) so the desk reads like a real pair. It is
+            not mainnet canonical USDC.
           </p>
           <p>
             <b>Attested</b> TEE / fair blocks trade at <b>5 bps</b> with no tax.

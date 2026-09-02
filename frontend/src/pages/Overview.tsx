@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppData } from "../context/AppData";
 import { useToast } from "../context/Toast";
-import { explorerTx, isLocal } from "../lib/clients";
+import { addresses, explorerTx, isLocal } from "../lib/clients";
 import { faucet, incrementFlashblock, mine } from "../lib/actions";
 import { compact, fmt, symbolFor } from "../lib/format";
 import {
@@ -208,7 +208,7 @@ function QuickActions() {
             <QuickCard
               icon={<IconCoins />}
               title="Get test tokens"
-              body="Mint 10,000 fpVOL + fpUSD to your wallet."
+              body={`Mint 10,000 ${addresses.token0Symbol} + ${addresses.token1Symbol} to your wallet.`}
               action="Faucet"
               busy={busy === "Minted test tokens"}
               disabled={!!busy}
