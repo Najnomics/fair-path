@@ -81,11 +81,11 @@ flowchart LR
     B -- "isFair(block.number)" --> C["FairPathHook"]
 ```
 
-| | Demo (this repo) | Production |
+| | This repo | Live Unichain |
 |---|---|---|
-| Oracle | `MockFlashtestationPolicy` | Flashbots Flashtestations / Unichain `BlockBuilderPolicy` |
-| How a block becomes "fair" | Permissionless `openFairWindow(duration)` for the judge bench | A valid builder / TEE proof for that block exists on-chain |
-| Why | Judges flip fairness and watch the fee change live | Only genuine attested blocks get the retail lane |
+| Oracle | `UnichainFairOracle` | Same contract, `FLASHBLOCK_NUMBER` + `BLOCK_BUILDER_POLICY` env |
+| How a block becomes "fair" | Owner-set TEE / builder keys call `incrementFlashblock`, or the live feed is non-zero | Unichain TEE builders increment `FlashblockNumber` |
+| Why | Permissionless `openFairWindow` is not production | Only genuine attested sequencing gets the retail lane |
 
 **Honest boundary.** Pricing and recapture are the hook's job. Proving fairness is the oracle's job. A production oracle must make block *N*'s attestation readable **during** block *N* — exactly what in-block Flashtestations / builder policy provide, as opposed to an after-the-fact report.
 
@@ -105,7 +105,7 @@ uint24 fee = SLOT_FEE[slot];
 | 1–2 | Mid-block | Mid | Same |
 | 3–4 | Late / retail-like | Lowest slot fee | Approaches attested retail |
 
-On Anvil / any chain without Flashblocks, `IFlashblockOracle` is a mock: the frontend (or `hookData`) sets the slot so judges can **slide 0–4 and watch the fee change** on the same swap size. On Unichain the oracle reads the sequencer / precompile. The hook does not care which.
+On chains without a live feed, only addresses in `builders[]` (owner-seeded from FlashtestationRegistry / TEE keys) may increment. There is no permissionless window.
 
 This is not a delay hook. Nothing waits. The swap executes now. The **price of now** depends on *when* inside the block it is.
 
@@ -120,8 +120,7 @@ Priority is rented. A searcher calls `bond(amount)` with WETH (or the pool's nat
 
 | Violation | Detection window | Effect |
 |---|---|---|
-| Same-block opposite-direction swap around a victim from the bonded address | This unlock / this flashblock | Slash `SLASH_BIPS` of the bond |
-| JIT add-and-remove around a victim swap from the bonded address | Same | Slash `SLASH_BIPS` of the bond |
+| Same-block opposite-direction swap from the bonded address | This block | Slash `SLASH_BIPS` of the bond |
 
 Slashed principal is `donate`d to in-range LPs of **this** pool. Retail never bonds. Identity is passed as a searcher address in `hookData` (the v4 `sender` is the router, never the end user — see below).
 
@@ -210,7 +209,7 @@ interface IFlashblockOracle {
 }
 ```
 
-Demo mocks: `MockFlashtestationPolicy.openFairWindow(duration)` and `MockFlashblockOracle.setSlot(uint8)` so the console can drive both oracles without a TEE or a Unichain sequencer.
+Production oracle: `UnichainFairOracle` wrapping Unichain `FlashblockNumber` / `BlockBuilderPolicy`, or a local feed gated by `setBuilder`.
 
 ## Why `sender` is not the searcher
 
@@ -234,8 +233,8 @@ The hook never uses `msg.sender` as user identity. `msg.sender` is the PoolManag
 
 **Partner integrations (hookathon README requirement)**
 
-- Flashbots Flashtestations — `IFairFlowPolicy` is the production seam; this repo ships `MockFlashtestationPolicy` so the bench is runnable without a TEE.
-- Unichain Flashblocks — `IFlashblockOracle` is the production seam; this repo ships `MockFlashblockOracle` so judges can slide the slot.
+- Flashbots Flashtestations — `IFairFlowPolicy` via `UnichainFairOracle` (live feed or owner-gated builders).
+- Unichain Flashblocks — `IFlashblockOracle.slot()` is `flashblockNumber % 5`.
 
 No other partners are claimed.
 
@@ -278,40 +277,30 @@ A functional frontend is the judge path. Planned pages, all talking to the hook 
 - **Swap** — three quotes side by side (attested / bonded-slot / toxic). Execute any path.
 - **Flashblocks** — slot slider 0–4; same size; fee and LP credit change live.
 - **Bond desk** — post / unbond, min-bond, slash history.
-- **Attestation** — `openFairWindow`; watch corridor 1 flip.
+- **Attestation** — registered builder `incrementFlashblock`; watch corridor 1 flip.
 - **Analytics** — `SwapClassified` + `BondSlashed` tape.
 
-## Testing (to be built)
+`forge test` covers toxic tax, attested heartbeat, unauthorized increment, bonded slot fee, same-block slash, static-fee init revert, bad hookData, unbond delay.
 
-- **Unit** — fee per corridor; slot monotonicity; attested never taxed; unbonded toxic always taxed; slash only on the published rule; `NotDynamicFee`.
-- **Integration** — mixed attested → slot-0 bonded → toxic → slash sequence; donate accumulation.
-- **Fuzz** — tax = `TOXIC_TAX_BIPS` of the pre-tax output; bonded clean swaps never slash; slot fee is a pure function of `slot`.
-- **Invariant** — `totalTaxDonated` equals sum of toxic taxes + slashes; bond ledger never goes negative.
-
-## Repository layout (target)
+## Repository layout
 
 ```
 src/
-  FairPathHook.sol                 # three-corridor fee + recapture + slash
-  SearcherBond.sol                 # bond / unbond / slash ledger
-  MockFlashtestationPolicy.sol     # demo IFairFlowPolicy
-  MockFlashblockOracle.sol         # demo IFlashblockOracle
-  interfaces/IFairFlowPolicy.sol
-  interfaces/IFlashblockOracle.sol
-  interfaces/ISearcherBond.sol
+  FairPathHook.sol
+  SearcherBond.sol
+  UnichainFairOracle.sol
+  interfaces/
 test/
   FairPathHook.t.sol
-  SearcherBond.t.sol
-  MockOracles.t.sol
-frontend/
-  src/pages/{Overview,Swap,Slots,Bond,Attestation,Analytics}*
+script/
+  DeployUnichain.s.sol
 ```
 
 ## Hookathon gates
 
 - Public repo (this repository)
 - Valid Uniswap v4 hook
-- Functioning frontend that calls the hook (required for this submission)
-- README partner integrations: Flashbots Flashtestations, Unichain Flashblocks (seams + mocks; no theoretical partners)
-- Video: attested swap vs slot-0 bonded swap vs toxic swap vs slash, no AI voice
+- Functioning frontend that calls the hook (see `FRONTEND.md` — Opus 4.8)
+- README partner integrations: Flashbots Flashtestations, Unichain Flashblocks
+- Video: attested vs slot-0 bonded vs toxic vs slash, no AI voice
 - Original work for UHI10; not a resubmission of the Fair Flow (attestation-only) capstone

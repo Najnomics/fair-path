@@ -1,22 +1,27 @@
-# Foundry
-out/
+# Compiler files
 cache/
-broadcast/
-lib/
+out/
 
-# Node
+# Ignores development (and goerli) broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/*/5/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# Node modules
 node_modules/
 frontend/dist/
-frontend/.env
-.env
-.env.*
-!.env.example
+frontend/node_modules/
 
-# OS / editor
-.DS_Store
-.idea/
-.vscode/
+# Vercel
+.vercel/
 
-# Coverage
-lcov.info
-coverage/
+# Local Anvil artifacts
+/tmp/
+.vercel

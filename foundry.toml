@@ -1,0 +1,28 @@
+[profile.default]
+bytecode_hash = "none"
+evm_version = "cancun"
+ffi = true
+fs_permissions = [
+    {access = "read-write", path = ".forge-snapshots/"},
+    {access = "read-write", path = "./deployments/"},
+]
+libs = ["lib"]
+out = "out"
+solc_version = "0.8.30"
+src = "src"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+
+[lint]
+exclude_lints = ["screaming-snake-case-immutable", "screaming-snake-case-const"]
+lint_on_build = false
+
+[rpc_endpoints]
+unichain = "${UNICHAIN_RPC_URL}"
+unichain_sepolia = "${UNICHAIN_SEPOLIA_RPC_URL}"
+
+[etherscan]
+# Etherscan v2 multichain — one API key works across chains (chainid selects Uniscan).
+unichain = { key = "${ETHERSCAN_API_KEY}", chain = 130, url = "https://api.etherscan.io/v2/api" }
+unichain_sepolia = { key = "${ETHERSCAN_API_KEY}", chain = 1301, url = "https://api.etherscan.io/v2/api" }
