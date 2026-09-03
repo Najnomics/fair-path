@@ -147,7 +147,13 @@ export function Overview() {
           />
           <MiniStat
             label="Pool fee flag"
-            value={pool ? (pool.lpFee === 0x800000 ? "dynamic" : `${pool.lpFee}`) : "—"}
+            value={
+              pool
+                ? pool.lpFee === 0x800000 || pool.lpFee === 0
+                  ? "dynamic"
+                  : `${pool.lpFee}`
+                : "—"
+            }
             loading={!ready}
           />
         </div>

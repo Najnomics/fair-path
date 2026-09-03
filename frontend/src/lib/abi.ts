@@ -94,6 +94,30 @@ export const policyAbi = [
     inputs: [],
     outputs: [],
   },
+  {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
+    name: "builders",
+    stateMutability: "view",
+    inputs: [{ name: "builder", type: "address" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "setBuilder",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "builder", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
 ] as const;
 
 export const erc20Abi = [
@@ -190,5 +214,20 @@ export const swapRouterAbi = [
       { name: "deadline", type: "uint256" },
     ],
     outputs: [{ type: "int256" }],
+  },
+] as const;
+
+export const permit2Abi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    outputs: [],
   },
 ] as const;

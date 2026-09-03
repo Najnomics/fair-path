@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { parseUnits } from "viem";
 import { useAppData } from "../context/AppData";
 import { useToast } from "../context/Toast";
-import { addresses, explorerTx, isLocal } from "../lib/clients";
+import { addresses, explorerTx, isDevKey, isLocal } from "../lib/clients";
 import { dualQuote, type DualQuote } from "../lib/sdk";
 import { executeSwap, faucet, incrementFlashblock, mine } from "../lib/actions";
 import { fmt, feePct } from "../lib/format";
 
-const SLIPPAGE_BIPS = 50n; // 0.50%
+const SLIPPAGE_BIPS = 50n; // floor; widened to quoted impact + 50 bps (cap 20%)
 
 export function SwapPage() {
   const { pool, balances, signer, needsConnect, connect, policy, refresh } =
@@ -15,7 +15,7 @@ export function SwapPage() {
   const toast = useToast();
 
   const [zeroForOne, setZeroForOne] = useState(true);
-  const [amount, setAmount] = useState("100");
+  const [amount, setAmount] = useState("1");
   const [protect, setProtect] = useState(true);
   const [quote, setQuote] = useState<DualQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
@@ -64,11 +64,19 @@ export function SwapPage() {
     if (!signer || !pool || amountRaw === 0n || !chosen) return;
     setBusy(protect ? "Routing through attested corridor…" : "Submitting swap…");
     try {
-      if (protect && isLocal && policy && !policy.fairNow) {
+      if (protect && (isLocal || isDevKey) && policy && !policy.fairNow) {
         await incrementFlashblock(signer.owner, signer.wc);
       }
-      const minOut =
-        (chosen.netOut * (10_000n - SLIPPAGE_BIPS)) / 10_000n;
+      const impactBips = BigInt(
+        Math.min(
+          2000,
+          Math.max(
+            Number(SLIPPAGE_BIPS),
+            Math.ceil(parseFloat(chosen.priceImpactPct || "0") * 100) + 50,
+          ),
+        ),
+      );
+      const minOut = (chosen.netOut * (10_000n - impactBips)) / 10_000n;
       const hash = await executeSwap({
         zeroForOne,
         amountIn: amountRaw,

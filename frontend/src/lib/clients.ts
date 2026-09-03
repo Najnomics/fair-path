@@ -29,24 +29,39 @@ const CHAINS: Record<number, Chain> = {
 };
 export const chain: Chain = CHAINS[CHAIN_ID] ?? foundry;
 
-const viteEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
+const viteEnv = (import.meta as unknown as { env?: Record<string, string | boolean> }).env;
 
 export const rpcUrl = isLocal
   ? typeof window !== "undefined"
     ? `${window.location.origin}/rpc`
     : "http://127.0.0.1:8546"
-  : viteEnv?.VITE_RPC_URL || chain.rpcUrls.default.http[0];
+  : String(viteEnv?.VITE_RPC_URL || chain.rpcUrls.default.http[0]);
 
 /** Anvil account #0. Local demo only — never use on a live network. */
 export const ANVIL_KEY =
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const;
 
-/** Local dev signer. On live chains, writes go through a connected wallet. */
-export const account = privateKeyToAccount(ANVIL_KEY);
+/**
+ * Local `npm run dev` signs with `PRIVATE_KEY` from the repo `.env`
+ * (injected by vite.config, gitignored). `vite build` / Vercel never
+ * receive it — production uses a browser wallet.
+ */
+const DEV_KEY = String(
+  import.meta.env.DEV && import.meta.env.VITE_PRIVATE_KEY
+    ? import.meta.env.VITE_PRIVATE_KEY
+    : "",
+);
+export const isDevKey =
+  !isLocal && DEV_KEY.startsWith("0x") && DEV_KEY.length >= 66;
+
+/** Local Anvil signer, or the gitignored Vite key during `npm run dev`. */
+export const account = privateKeyToAccount(
+  (isDevKey ? DEV_KEY : ANVIL_KEY) as `0x${string}`,
+);
 
 export const publicClient = createPublicClient({
   chain,
-  transport: http(rpcUrl),
+  transport: http(rpcUrl, { batch: false }),
 });
 
 /**
@@ -60,13 +75,13 @@ export const logsRpcUrl = isLocal
 
 export const logsClient = createPublicClient({
   chain,
-  transport: http(logsRpcUrl),
+  transport: http(logsRpcUrl, { batch: false }),
 });
 
 export const walletClient = createWalletClient({
   account,
   chain,
-  transport: http(rpcUrl),
+  transport: http(rpcUrl, { batch: false }),
 });
 
 const policyOrOracle = addr("policy") !== ZERO ? addr("policy") : addr("oracle");

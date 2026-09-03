@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { addresses, chain, explorerTx, isLocal } from "../lib/clients";
+import { addresses, chain, explorerTx, isDevKey, isLocal } from "../lib/clients";
 import { useAppData } from "../context/AppData";
 import { useToast } from "../context/Toast";
 import { faucet } from "../lib/actions";
@@ -105,7 +105,7 @@ function WalletChip() {
     );
   }
   return (
-    <span className="chip wallet-chip" onClick={isLocal ? undefined : disconnect}>
+    <span className="chip wallet-chip" onClick={isLocal || isDevKey ? undefined : disconnect}>
       {short(signer?.owner)}
       {balances && (
         <span className="bals">

@@ -5,7 +5,7 @@ import {
   type Address,
   type WalletClient,
 } from "viem";
-import { account, chain, chainId, isLocal, rpcUrl, walletClient } from "./clients";
+import { account, chain, chainId, isDevKey, isLocal, rpcUrl, walletClient } from "./clients";
 
 export type Signer = { owner: Address; wc: WalletClient };
 
@@ -28,7 +28,10 @@ export function useSigner() {
   const localSigner: Signer | null = isLocal
     ? { owner: account.address, wc: walletClient }
     : null;
-  const signer = localSigner ?? injected;
+  const keySigner: Signer | null = isDevKey
+    ? { owner: account.address, wc: walletClient }
+    : null;
+  const signer = localSigner ?? keySigner ?? injected;
 
   const connect = useCallback(async () => {
     const eth = getEthereum();
@@ -93,6 +96,6 @@ export function useSigner() {
     connect,
     disconnect,
     error,
-    needsConnect: !isLocal && !injected,
+    needsConnect: !isLocal && !isDevKey && !injected,
   };
 }
